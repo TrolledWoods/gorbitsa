@@ -1,4 +1,37 @@
+# TODO: Automatically inline size 1 variables into unused argument slots
+# if possible.
 $x 1
 $y 1
 
+const -20
+mem_set_x $y
 
+:vertical_loop
+	# print a new line
+	const 10
+	output_x
+
+	const -40
+	mem_set_x $x
+
+	:horizontal_loop
+		const 1
+		mem_incr_x $x
+
+		const '#
+		output_x
+
+		mem $x
+		branch :vert_end
+		const 0
+		branch :horizontal_loop
+
+	:vert_end
+	const 1
+	mem_incr_x $y
+
+	mem $y
+	branch 255
+
+	const 0
+	branch :vertical_loop

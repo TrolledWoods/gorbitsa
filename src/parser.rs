@@ -147,6 +147,8 @@ pub fn parse_assembly(input: &str) -> Result<Vec<u8>, Error> {
 		commands[loc] = commands[loc].wrapping_add(variable_loc as u8);
 	}
 
+	println!("MEMORY USAGE(in bytes): {}", variable_loc);
+
 	Ok(commands)
 }
 

@@ -121,8 +121,12 @@ impl RamVm<'_> {
 		let mut string = String::new();
 		while self.ram[index] > 0 {
 			string.push(self.ram[index] as char);
-			use std::fmt::Write;
-			write!(string, "{} ", self.ram[index + 1]).unwrap();
+			if command_has_arg(self.ram[index]) {
+				use std::fmt::Write;
+				write!(string, "{} ", self.ram[index + 1]).unwrap();
+			} else { 
+				string.push(' '); 
+			}
 			index += 2;
 		}
 		string
