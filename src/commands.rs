@@ -49,6 +49,8 @@ macro_rules! commands {
 }
 
 commands!(vm, arg =>
+	"0"; "just zero bro";
+	b"\0"; (false) {},
 	"mem"; "x = mem[argument]";
 	b"G"; (true)  vm.set_x(vm.mem(arg)),
 	"mem_set_x"; "mem[argument] = x";
@@ -111,6 +113,20 @@ pub struct RamVm<'a> {
 	pub x_register: u8,
 	pub input: &'a [u8],
 	pub output: Vec<u8>,
+}
+
+impl RamVm<'_> {
+	pub fn get_gorbitsa(&self) -> String {
+		let mut index = 0;
+		let mut string = String::new();
+		while self.ram[index] > 0 {
+			string.push(self.ram[index] as char);
+			use std::fmt::Write;
+			write!(string, "{} ", self.ram[index + 1]).unwrap();
+			index += 2;
+		}
+		string
+	}
 }
 
 impl VM for RamVm<'_> {
