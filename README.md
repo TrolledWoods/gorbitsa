@@ -37,6 +37,7 @@ This interpreter is runs in ``GORBIT-RAM`` mode. It is not finished yet, so more
 
 # Assembly commands
 | Name | Assembly instruction | Pseudo code |
+| :---- | :-----------------: | ----------------------: |
 |   G | ``mem``				| 	``x = mem[argument]``		|
 |   O | ``mem_set_x``		| 	``mem[argument] = `x``		|
 |   R |	``input``			| 	``x = next value in input``		|
