@@ -13,6 +13,8 @@ pub fn parse_assembly(input: &str) -> Result<Vec<u8>, Error> {
 	let mut variables = HashMap::new();
 	let mut variable_uses = Vec::new();
 
+	let mut empty_argument_slots = Vec::new();
+
 	for (n_line, line) in input.lines().map(|v| v.trim()).enumerate() {
 		if line.len() == 0 { continue; }
 
@@ -92,6 +94,10 @@ pub fn parse_assembly(input: &str) -> Result<Vec<u8>, Error> {
 
 			arg
 		} else {
+			// This byte isn't used, so we could use it to store a
+			// variable.
+			empty_argument_slots.push(commands.len() + 1);
+
 			0
 		};
 
@@ -127,10 +133,16 @@ pub fn parse_assembly(input: &str) -> Result<Vec<u8>, Error> {
 		commands[loc] = commands[loc].wrapping_add(label_loc as u8);
 	}
 
-	// Figure out the variable locations
-	// TODO: Make a special case for ROM mode
 	let mut variable_loc = commands.len() + 1;
 	for (name, (size, pos)) in variables.iter_mut() {
+		// Try to see if there is an empty argument slot to use.
+		if *size == 1 {
+			if let Some(slot) = empty_argument_slots.pop() {
+				*pos = slot;
+				continue;
+			}
+		}
+
 		*pos = variable_loc;
 		variable_loc += *size as usize;
 	}
