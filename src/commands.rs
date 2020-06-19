@@ -1,8 +1,35 @@
 /// Defines the commands to use. 
 macro_rules! commands {
-	($vm:ident, $arg:ident => $($name:expr; ($has_arg:expr) $run:expr),*,) => {
-		pub fn run_command($vm: &mut impl VM, cmd: char, $arg: u8) {
-			match cmd {
+	($vm:ident, $arg:ident => $($long_name:expr; $desc:expr; $name:expr; ($has_arg:expr) $run:expr),*,) => {
+		pub fn name_to_instr(long: &str) -> Option<u8> {
+			match long {
+				$(
+					$long_name => Some($name[0]),
+				)*
+				_ => None,
+			}
+		}
+
+		pub fn instr_to_name(instr: u8) -> &'static str {
+			match &[instr] {
+				$(
+					$name => $long_name,
+				)*
+				_ => panic!("Invalid command {}", instr),
+			}
+		}
+
+		pub fn instr_to_desc(instr: u8) -> &'static str {
+			match &[instr] {
+				$(
+					$name => $desc,
+				)*
+				_ => panic!("Invalid command {}", instr),
+			}
+		}
+
+		pub fn run_command($vm: &mut impl VM, cmd: u8, $arg: u8) {
+			match &[cmd] {
 				$(
 					$name => $run,
 				)*
@@ -10,8 +37,8 @@ macro_rules! commands {
 			}
 		}
 
-		pub fn command_has_arg(cmd: char) -> bool {
-			match cmd {
+		pub fn command_has_arg(cmd: u8) -> bool {
+			match &[cmd] {
 				$(
 					$name => $has_arg,
 				)*
@@ -22,34 +49,50 @@ macro_rules! commands {
 }
 
 commands!(vm, arg =>
-	'G'; (true)  vm.set_x(vm.mem(arg)),
-	'O'; (true)  vm.set_mem(arg, vm.x()),
-	'R'; (false) { 
+	"mem"; "x = mem[argument]";
+	b"G"; (true)  vm.set_x(vm.mem(arg)),
+	"mem_set_x"; "mem[argument] = x";
+	b"O"; (true)  vm.set_mem(arg, vm.x()),
+	"input"; "x = next value in input";
+	b"R"; (false) { 
 		let input = vm.read_input();
 		vm.set_x(input);
 	}, 
-	'B'; (true)  if vm.x() == 0 { vm.jump(arg); },
-	'I'; (true)  vm.set_x(vm.x().wrapping_add(arg)),
-	'T'; (false) vm.write_output(vm.x()),
-	'S'; (true)  vm.set_x(arg),
-	'A'; (true)  vm.set_x(vm.x() + vm.mem(arg)),
+	"branch"; "if x == 0 goto argument";
+	b"B"; (true)  if vm.x() == 0 { vm.jump(arg); },
+	"incr"; "x += argument";
+	b"I"; (true)  vm.set_x(vm.x().wrapping_add(arg)),
+	"output_x"; "push x to output";
+	b"T"; (false) vm.write_output(vm.x()),
+	"const"; "x = argument";
+	b"S"; (true)  vm.set_x(arg),
+	"incr_mem"; "x += mem[argument";
+	b"A"; (true)  vm.set_x(vm.x() + vm.mem(arg)),
 
-	'g'; (true)  vm.set_x(vm.mem(vm.mem(arg))),
-	'o'; (true)  vm.set_mem(vm.mem(arg), vm.x()),
-	'r'; (true)  { 
+	"memi"; "x = mem[mem[argument]]";
+	b"g"; (true)  vm.set_x(vm.mem(vm.mem(arg))),
+	"memi_set_x"; "mem[mem[argument]] = x";
+	b"o"; (true)  vm.set_mem(vm.mem(arg), vm.x()),
+	"mem_set_input"; "mem[argument] = next value in input";
+	b"r"; (true)  { 
 		let input = vm.read_input();
-		vm.set_mem(vm.x(), input);
+		vm.set_mem(arg, input);
 	},
-	'b'; (true)  if vm.x() == 0 { vm.jump(vm.mem(arg)); },
-	'i'; (true)  vm.set_mem(arg, vm.mem(arg).wrapping_add(vm.x())),
-	't'; (true)  vm.write_output(vm.mem(arg)),
-	's'; (true)  vm.set_x(vm.mem(arg) ^ vm.x()),
-	'a'; (true)  vm.set_x(vm.mem(vm.mem(arg)).wrapping_add(vm.x())),
+	"branch_mem"; "if x == 0 goto mem[argument]";
+	b"b"; (true)  if vm.x() == 0 { vm.jump(vm.mem(arg)); },
+	"mem_incr_x"; "mem[argument] += x";
+	b"i"; (true)  vm.set_mem(arg, vm.mem(arg).wrapping_add(vm.x())),
+	"output_mem"; "print mem[argument]";
+	b"t"; (true)  vm.write_output(vm.mem(arg)),
+	"xor"; "x = xor(mem[argument], x)";
+	b"s"; (true)  vm.set_x(vm.mem(arg) ^ vm.x()),
+	"incr_memi"; "x += mem[mem[argument]]";
+	b"a"; (true)  vm.set_x(vm.mem(vm.mem(arg)).wrapping_add(vm.x())),
 );
 
 pub trait VM {
 	fn mem(&self, pos: u8) -> u8;
-	fn set_mem(&self, pos: u8, value: u8);
+	fn set_mem(&mut self, pos: u8, value: u8);
 	fn x(&self) -> u8;
 	fn set_x(&mut self, value: u8);
 
@@ -58,21 +101,50 @@ pub trait VM {
 
 	/// Returns the next instruction and argument, and increments the
 	/// instruction pointer.
-	fn next(&mut self) -> Option<(char, u8)>;
+	fn next(&mut self) -> Option<(u8, u8)>;
 	fn jump(&mut self, instr: u8);
 }
 
-pub struct RamVm {
-	ram: [256; u8],
-	instr_pointer: u8,
-	x_register: u8,
-	input: Vec<u8>,
-	output: Vec<u8>,
+pub struct RamVm<'a> {
+	pub ram: [u8; 256],
+	pub instr_pointer: u16,
+	pub x_register: u8,
+	pub input: &'a [u8],
+	pub output: Vec<u8>,
 }
 
-impl VM {
+impl VM for RamVm<'_> {
 	fn mem(&self, pos: u8) -> u8 { self.ram[pos as usize] }
-	fn set_mem(&mut self, pos: u8, value) { self.ram[pos as usize] = value; }
+	fn set_mem(&mut self, pos: u8, value: u8) { 
+		self.ram[pos as usize] = value; 
+	}
 	fn x(&self) -> u8 { self.x_register }
-	fn set_x(&mut self, value: u8) -> { self.x_register = value; }
+	fn set_x(&mut self, value: u8) { self.x_register = value; }
+
+	fn read_input(&mut self) -> u8 { 
+		if let Some(first) = self.input.first().copied() {
+			self.input = &self.input[1..];
+			first
+		} else {
+			// The default input
+			0
+		}
+	}
+
+	fn write_output(&mut self, output: u8) {
+		self.output.push(output);
+	}
+
+	fn next(&mut self) -> Option<(u8, u8)> {
+		let instr = *self.ram.get(self.instr_pointer as usize)?;
+		let arg   = *self.ram.get(self.instr_pointer as usize + 1)?;
+
+		self.instr_pointer += 2;
+
+		Some((instr, arg))
+	}
+
+	fn jump(&mut self, pos: u8) {
+		self.instr_pointer = pos as u16;
+	}
 }
