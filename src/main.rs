@@ -1,18 +1,21 @@
 mod commands;
-mod lexer;
+mod parser;
 
 fn main() {
 	let mut program = [0; 256];
-	program[0] = 'R' as u8;
-	program[1] = 0;
-	program[2] = 'T' as u8;
-	program[3] = 0;
-	program[4] = 'B' as u8;
-	program[5] = 10;
-	program[6] = 'S' as u8;
-	program[7] = 0;
-	program[8] = 'B' as u8;
-	program[9] = 0;
+	let parsed_program = parser::parse_assembly("
+:start
+input
+output_x
+branch :end
+const 0
+branch :start
+:end
+").unwrap();
+	for (i, thing) in parsed_program.into_iter().enumerate() {
+		program[i] = thing;
+	}
+
 	let input = b"Hello world!";
 	let mut commands = commands::RamVm {
 		ram: program,
